@@ -1,0 +1,9 @@
+body { font: 16px system-ui, sans-serif; color: #202932; background: #f6f7f8; margin: 0; }
+main { max-width: 900px; margin: auto; padding: 24px; }
+article, .card { background: white; border: 1px solid #cad1d7; border-radius: 6px; padding: 16px; margin: 12px 0; }
+textarea { display: block; box-sizing: border-box; width: 100%; min-height: 70px; margin: 8px 0; font: inherit; }
+button { margin: 4px 8px 4px 0; padding: 7px 12px; cursor: pointer; }
+button:disabled { cursor: default; }
+img { max-width: 100%; }
+.error { color: #a21d21; }
+label { margin: 0 12px; }

@@ -31,6 +31,12 @@ def get_session(session_id: str):
     return session
 
 
+@app.get('/api/sessions/{session_id}')
+async def session_status(session_id: str):
+    session = get_session(session_id)
+    return {'sessionId': session.id, 'state': session.state}
+
+
 class Message(BaseModel):
     text: str = Field(min_length=1, max_length=1000)
 
