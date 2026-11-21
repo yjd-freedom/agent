@@ -1,0 +1,7 @@
+test_code/
+frontend/node_modules/
+frontend/dist/
+*.tsbuildinfo
+__pycache__/
+.env
+agent_streaming_confirmation_requirements.md
