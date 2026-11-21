@@ -49,7 +49,11 @@ function App() {
     fetch('/health').then(r => r.ok ? r.json() : Promise.reject()).then(d => active && setHealth(d.status)).catch(() => active && setHealth('unavailable'));
     (async () => {
       let id = localStorage.getItem('agentSession');
-      if (id) { try { await request(`/api/sessions/${id}`); } catch { id = null; } }
+      if (id) {
+        const response = await fetch(`/api/sessions/${id}`);
+        if (response.status === 404) id = null;
+        else if (!response.ok) throw new Error('Cannot check the saved session');
+      }
       if (!id) { const created = await request('/api/sessions', {}); id = created.sessionId; localStorage.setItem('agentSession', id!); }
       if (active) setSession(id!);
     })().catch(e => active && setError(String(e)));

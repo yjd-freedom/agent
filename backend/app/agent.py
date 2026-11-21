@@ -53,7 +53,7 @@ async def run_agent(session, turn_id, text):
             session.emit('turn_ended', turn_id, {'reason': 'completed'})
     except asyncio.CancelledError:
         async with session.condition:
-            if session.state in BUSY:
+            if session.turn_id == turn_id and session.state in BUSY:
                 if tool and session.state in {'searching', 'generating_image'}:
                     session.emit('tool_finished', turn_id, {'tool': tool, 'status': 'cancelled'})
                 session.state = 'cancelled'
@@ -61,7 +61,7 @@ async def run_agent(session, turn_id, text):
         raise
     except Exception:
         async with session.condition:
-            if session.state in BUSY:
+            if session.turn_id == turn_id and session.state in BUSY:
                 if tool:
                     session.emit('tool_finished', turn_id, {'tool': tool, 'status': 'failed', 'error': 'Agent execution failed'})
                 session.state = 'failed'
