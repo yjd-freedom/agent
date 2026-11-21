@@ -119,8 +119,14 @@ async def session_events(session_id: str, after: int = Query(default=0, ge=0)):
 
     async def events():
         cursor = after
+        yield ': connected\n\n'
         while True:
-            for event in await session.read_after(cursor):
+            try:
+                batch = await asyncio.wait_for(session.read_after(cursor), timeout=15)
+            except asyncio.TimeoutError:
+                yield ': heartbeat\n\n'
+                continue
+            for event in batch:
                 cursor = event["seq"]
                 yield f"id: {cursor}\nevent: {event['type']}\ndata: {json.dumps(event)}\n\n"
 
