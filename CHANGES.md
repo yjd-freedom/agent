@@ -344,3 +344,140 @@ def make_svg(text: str, color: str = "#315a81") -> str:
     )
 ```
 
+### ?????2026-11-21
+
+- **????**?`backend/app/store.py`
+- **?????**???????????????
+- **?????**????????????
+- **?????**???????????????????
+
+#### 1. ???????????
+```python
+// ? 1 ? ~ ? 1 ?
+// ?????
+```
+
+#### 2. ???????????
+```python
+// ? 1 ? ~ ? 33 ?
+import asyncio
+from datetime import datetime, timezone
+from uuid import uuid4
+
+
+class Session:
+    def __init__(self):
+        self.id = str(uuid4())
+        self.condition = asyncio.Condition()
+        self.events = []
+
+    async def publish(self, event_type: str, turn_id: str, data: dict):
+        async with self.condition:
+            event = {
+                "seq": len(self.events) + 1,
+                "type": event_type,
+                "sessionId": self.id,
+                "turnId": turn_id,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "data": data,
+            }
+            self.events.append(event)
+            self.condition.notify_all()
+            return event
+
+    async def read_after(self, seq: int):
+        async with self.condition:
+            while len(self.events) <= seq:
+                await self.condition.wait()
+            return self.events[seq:].copy()
+
+
+sessions: dict[str, Session] = {}
+```
+
+### ?????2026-11-21
+
+- **????**?`backend/app/main.py`
+- **?????**???????????????
+- **?????**????????????
+- **?????**???????????????????
+
+#### 1. ???????????
+```python
+// ? 1 ? ~ ? 22 ?
+import asyncio
+import json
+
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+
+app = FastAPI()
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+@app.get("/api/demo-stream")
+async def demo_stream():
+    async def events():
+        for seq in range(1, 6):
+            yield f"id: {seq}\ndata: {json.dumps({'seq': seq})}\n\n"
+            await asyncio.sleep(1)
+
+    return StreamingResponse(events(), media_type="text/event-stream")
+```
+
+#### 2. ???????????
+```python
+// ? 1 ? ~ ? 47 ?
+import asyncio
+import json
+
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import StreamingResponse
+
+from .store import Session, sessions
+
+app = FastAPI()
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+@app.post("/api/sessions")
+async def create_session():
+    session = Session()
+    sessions[session.id] = session
+    return {"sessionId": session.id}
+
+
+@app.get("/api/sessions/{session_id}/events")
+async def session_events(session_id: str, after: int = Query(default=0, ge=0)):
+    session = sessions.get(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    async def events():
+        cursor = after
+        while True:
+            for event in await session.read_after(cursor):
+                cursor = event["seq"]
+                yield f"id: {cursor}\nevent: {event['type']}\ndata: {json.dumps(event)}\n\n"
+
+    return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.get("/api/demo-stream")
+async def demo_stream():
+    async def events():
+        for seq in range(1, 6):
+            yield f"id: {seq}\ndata: {json.dumps({'seq': seq})}\n\n"
+            await asyncio.sleep(1)
+
+    return StreamingResponse(events(), media_type="text/event-stream")
+```
+
