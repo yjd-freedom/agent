@@ -206,3 +206,107 @@ __pycache__/
 agent_streaming_confirmation_requirements.md
 ```
 
+### ?????2026-11-21
+
+- **????**?`backend/app/main.py`
+- **?????**?????? SSE ????????
+- **?????**?????????
+- **?????**?????????????????????
+
+#### 1. ???????????
+```text
+// ? 1 ? ~ ? 8 ?
+from fastapi import FastAPI
+
+app = FastAPI()
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+```
+
+#### 2. ???????????
+```text
+// ? 1 ? ~ ? 22 ?
+import asyncio
+import json
+
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+
+app = FastAPI()
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+@app.get("/api/demo-stream")
+async def demo_stream():
+    async def events():
+        for seq in range(1, 6):
+            yield f"id: {seq}\ndata: {json.dumps({'seq': seq})}\n\n"
+            await asyncio.sleep(1)
+
+    return StreamingResponse(events(), media_type="text/event-stream")
+```
+
+### ?????2026-11-21
+
+- **????**?`frontend/src/main.tsx`
+- **?????**?????? SSE ????????
+- **?????**?????????
+- **?????**?????????????????????
+
+#### 1. ???????????
+```text
+// ? 1 ? ~ ? 15 ?
+import { useEffect, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+
+function App() {
+  const [health, setHealth] = useState('checking');
+  useEffect(() => {
+    fetch('/health').then(response => {
+      if (!response.ok) throw new Error('Health check failed');
+      return response.json();
+    }).then(result => setHealth(result.status)).catch(() => setHealth('unavailable'));
+  }, []);
+  return <main><h1>Streaming Agent Chat</h1><p>Backend: {health}</p></main>;
+}
+
+createRoot(document.getElementById('root')!).render(<App />);
+```
+
+#### 2. ???????????
+```text
+// ? 1 ? ~ ? 25 ?
+import { useEffect, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+
+function App() {
+  const [health, setHealth] = useState('checking');
+  const [events, setEvents] = useState<number[]>([]);
+  useEffect(() => {
+    fetch('/health').then(response => {
+      if (!response.ok) throw new Error('Health check failed');
+      return response.json();
+    }).then(result => setHealth(result.status)).catch(() => setHealth('unavailable'));
+  }, []);
+  useEffect(() => {
+    const source = new EventSource('/api/demo-stream');
+    source.onmessage = event => {
+      const { seq } = JSON.parse(event.data) as { seq: number };
+      setEvents(previous => previous.includes(seq) ? previous : [...previous, seq]);
+      if (seq === 5) source.close();
+    };
+    return () => source.close();
+  }, []);
+  return <main><h1>Streaming Agent Chat</h1><p>Backend: {health}</p><p>Stream: {events.join(', ') || 'waiting'}</p></main>;
+}
+
+createRoot(document.getElementById('root')!).render(<App />);
+```
+
